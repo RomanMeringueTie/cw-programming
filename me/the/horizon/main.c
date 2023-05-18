@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <math.h>
 
@@ -13,12 +12,12 @@ unsigned int hash(char *str, size_t m)
     int d = 13;
     for (int i = 0; *str != '\0' && i < m; i++)
     {
-        h += pow(d, m) * str[i];
+        h += str[i] * pow(d, m);
     }
     return h;
 }
 
-char *rabinKarp(char *pattern, char *text)
+char *rabinKarp(char *pattern, char *text, int *index)
 {
     int d = 13;
     int m = strlen(pattern);
@@ -38,11 +37,14 @@ char *rabinKarp(char *pattern, char *text)
                     break;
             }
             if (isMatch == m)
+            {
+                *index = i;
                 return text;
+            }
         }
         if (i < n - m)
         {
-            t = (t - text[i] * pow(d, m)) + (text[i + m] * pow(d, m));
+            t = t - text[i] * pow(d, m) + text[i + m] * pow(d, m);
         }
     }
     return NULL;
@@ -84,6 +86,8 @@ int check_str(char *str)
 
 int dir_check(const char *path, char *pattern)
 {
+    int index = 0;
+    int prevIndex = 0;
     int ret = 0;
     int astCount = check_str(pattern);
     int isPattern = 0;
@@ -102,7 +106,7 @@ int dir_check(const char *path, char *pattern)
     {
         if (!astCount)
         {
-            result = rabinKarp(pattern, entry->d_name);
+            result = rabinKarp(pattern, entry->d_name, &index);
             if (result != NULL)
             {
                 printf("Найдено совпадение: %s\n", result);
@@ -116,10 +120,13 @@ int dir_check(const char *path, char *pattern)
             isPattern = 0;
             for (tmp = strtok(copy, "*"); tmp; tmp = strtok(NULL, "*"))
             {
-                result = rabinKarp(tmp, entry->d_name);
+                result = rabinKarp(tmp, entry->d_name, &index);
                 if (result != NULL)
                 {
                     isPattern++;
+                    if (index < prevIndex)
+                        return ret;
+                    prevIndex = index;
                 }
             }
             if (isPattern == astCount)
@@ -136,7 +143,7 @@ int dir_check(const char *path, char *pattern)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2)
+    if (argc < 3)
     {
         printf("Неверное количество аргументов\n");
         return -1;
