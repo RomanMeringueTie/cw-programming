@@ -82,12 +82,13 @@ int check_str(char *str)
         return 0;
 }
 
-char *dir_check(const char *path, char *pattern)
+int dir_check(const char *path, char *pattern)
 {
+    int ret = 0;
     int astCount = check_str(pattern);
-    printf("%d\n", astCount);
-    char *tmp = NULL;
-    int count = 0;
+    int isPattern = 0;
+    char *copy = malloc(strlen(pattern));
+    strcpy(copy, pattern);
     char *result = NULL;
     struct dirent *entry;
     DIR *dp;
@@ -95,40 +96,42 @@ char *dir_check(const char *path, char *pattern)
     if (dp == NULL)
     {
         perror("opendir");
-        return NULL;
+        return -1;
     }
     while ((entry = readdir(dp)))
     {
-        strtok(pattern, "*");
-        count = 0;
         if (!astCount)
         {
             result = rabinKarp(pattern, entry->d_name);
             if (result != NULL)
             {
-                printf("Найдено совпадение:\n%s\n", result);
-                continue;
+                printf("Найдено совпадение: %s\n", result);
+                ret++;
             }
         }
         else
         {
-            while (tmp != NULL)
+            char *tmp = NULL;
+            strcpy(copy, pattern);
+            isPattern = 0;
+            for (tmp = strtok(copy, "*"); tmp; tmp = strtok(NULL, "*"))
             {
-                printf("%s %s\n", tmp, entry->d_name);
                 result = rabinKarp(tmp, entry->d_name);
                 if (result != NULL)
                 {
-                    count++;
+                    isPattern++;
                 }
-                tmp = strtok(NULL, "*");
             }
-            printf("%d %d\n", count, astCount);
-            if (count == astCount)
-                printf("Найдено совпадение:\n%s\n", entry->d_name);
+            if (isPattern == astCount)
+            {
+                printf("Найдено совпадение: %s\n", entry->d_name);
+                ret++;
+            }
         }
     }
+    free(copy);
     closedir(dp);
-    return result;
+    return ret;
 }
 
 int main(int argc, char **argv)
@@ -138,6 +141,7 @@ int main(int argc, char **argv)
         printf("Неверное количество аргументов\n");
         return -1;
     }
+    int ret = 0;
     char *dir = malloc(MAX_PATH);
     char *pat = NULL;
     if (!(strcmp(argv[1], "-r")))
@@ -147,7 +151,11 @@ int main(int argc, char **argv)
         do
         {
             printf("%s:\n", dir);
-            dir_check(dir, pat);
+            ret = dir_check(dir, pat);
+            if (ret == 0)
+                printf("Совпадений не найдено\n");
+            else if (ret == -1)
+                return -1;
         } while (is_previous_path(&dir));
     }
     else
@@ -155,7 +163,8 @@ int main(int argc, char **argv)
         realpath(argv[2], dir);
         pat = argv[1];
         printf("%s:\n", dir);
-        dir_check(dir, pat);
+        if (dir_check(dir, pat) == 0)
+            printf("Совпадений не найдено\n");
     }
     free(dir);
     return 0;
